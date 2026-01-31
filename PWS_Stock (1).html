@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Opname App By LN</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+          --primary: #005f73; --secondary-sea: #0a9396; --bg: #e9ecef;
+          --success: #28a745; --danger: #dc3545; --warning: #fd7e14; --cream: #fff9c4;
+        }
+        body { background: var(--bg); font-family: 'Segoe UI', sans-serif; font-size: 0.8rem; }
+
+        #loginOverlay { position: fixed; inset: 0; background: linear-gradient(135deg, rgba(0, 95, 115, 0.9), rgba(10, 147, 150, 0.9)); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .login-box { background: white; padding: 30px; border-radius: 20px; width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+
+        .menu-header { background: linear-gradient(135deg, var(--primary), var(--secondary-sea)); color: white; padding: 25px 15px; border-radius: 0 0 30px 30px; margin-bottom: 20px; text-align: center; }
+        .menu-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 15px; }
+        .menu-item { background: var(--cream); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px 5px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); cursor: pointer; border: 1px solid rgba(0,95,115,0.1); }
+
+        section { display: none; padding: 8px; }
+        .content-wrapper { width: 100%; max-width: 1200px; margin: auto; }
+
+        /* TABEL ULTRA COMPACT */
+        .table-card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 10px rgba(0,0,0,0.08); }
+        .table-container { max-height: 75vh; overflow: auto; -webkit-overflow-scrolling: touch; }
+        .table { margin-bottom: 0; white-space: nowrap; font-size: 0.72rem; table-layout: auto; width: 100%; }
+
+        .table thead th {
+          position: sticky; top: 0; background: var(--primary) !important; color: white; z-index: 10;
+          padding: 2px 6px !important; font-weight: 600; cursor: pointer; min-width: 40px; border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .table td {
+          padding: 1px 6px !important;
+          max-width: 140px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; height: 24px;
+        }
+
+        /* ANIMASI GETAR */
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        .shake { animation: shake 0.2s ease-in-out 0s 2; }
+
+        .header-content { display: flex; align-items: center; justify-content: space-between; gap: 2px; }
+        .btn-shrink { background: rgba(255,255,255,0.25); border: none; color: white; border-radius: 3px; padding: 0 3px; font-size: 0.65rem; }
+
+        .expanded-col { white-space: normal !important; min-width: 180px !important; max-width: none !important; background-color: rgba(0, 95, 115, 0.03); }
+        .selisih-row { background-color: #fff0f0 !important; }
+        .selisih-row td { color: #842029 !important; font-weight: 600; }
+
+        .table input.form-control-sm { font-size: 0.7rem; padding: 0 4px; height: 20px; width: 90px !important; background: var(--cream); border: 1px solid #aaa; }
+        .btn-sm-custom { padding: 0 6px; font-size: 0.65rem; min-height: 20px; }
+
+        #loader { position: fixed; inset: 0; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+<div id="msgBox" style="position:fixed; top:20px; right:20px; padding:10px 20px; color:white; border-radius:10px; display:none; z-index:10001;"></div>
+<div id="loader"><div class="spinner-border text-info"></div></div>
+
+<div id="loginOverlay">
+    <div class="login-box text-center">
+        <h5 class="fw-bold mb-3">Stock Opname</h5>
+        <select id="uIn" class="form-select rounded-pill mb-2 shadow-sm">
+            <option value="" disabled selected>Pilih User</option>
+            <option value="Admin">Admin</option><option value="Yosep">Yosep</option><option value="Ayu">Ayu</option>
+            <option value="Rafi">Rafi</option><option value="Lutfi">Lutfi</option><option value="Indra">Indra</option>
+            <option value="Aris">Aris</option><option value="Monica">Monica</option><option value="Ladi">Ladi</option>
+            <option value="Vanya">Vanya</option><option value="Yuni">Yuni</option><option value="Hasri">Hasri</option>
+        </select>
+        <input type="password" id="pIn" class="form-control rounded-pill mb-3 shadow-sm" placeholder="Password">
+        <button onclick="doLogin()" class="btn btn-info text-white fw-bold w-100 rounded-pill">LOGIN</button>
+    </div>
+</div>
+
+<section id="menuSec">
+    <div class="menu-header shadow-sm">
+        <h6 class="opacity-75 small mb-0">Accounting - Indolakto</h6>
+        <h4 class="fw-bold" id="helloUser">User</h4>
+        <div class="mt-2 mx-auto" style="max-width: 220px;">
+            <small id="pText" class="fw-bold" style="font-size: 0.7rem;">Progres: 0%</small>
+            <div class="progress mt-1" style="height: 10px; border-radius: 10px; background: rgba(255,255,255,0.2);">
+                <div id="pBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+    <div class="menu-list">
+        <div class="menu-item" onclick="openStok()"><i class="bi bi-calculator fs-4"></i><small class="fw-bold">Master SAP</small></div>
+        <div class="menu-item" onclick="manualSync()"><i class="bi bi-arrow-repeat fs-4"></i><small class="fw-bold">Sync Data</small></div>
+        <div class="menu-item" onclick="openHist()"><i class="bi bi-journal-text fs-4"></i><small class="fw-bold">Riwayat</small></div>
+        <div class="menu-item" onclick="openSum()"><i class="bi bi-file-earmark-bar-graph fs-4"></i><small class="fw-bold">Summary</small></div>
+        <div class="menu-item logout-item" style="grid-column: span 2; background:#fff5f5; flex-direction: row; display: flex;" onclick="doLogout()"><i class="bi bi-power text-danger me-2"></i><small class="fw-bold text-danger">Logout</small></div>
+    </div>
+</section>
+<section id="stokSec">
+    <div class="content-wrapper">
+        <div class="d-flex align-items-center justify-content-between mb-2 bg-white p-2 rounded-3 shadow-sm">
+            <div class="d-flex align-items-center"><i class="bi bi-arrow-left fs-5 me-2" onclick="show('menuSec')" style="cursor:pointer"></i><h6 class="mb-0 fw-bold">Master</h6></div>
+            <div class="d-flex">
+                <button onclick="filterStokSelisih()" class="btn btn-xs btn-outline-danger btn-sm-custom me-1">Selisih</button>
+                <button onclick="refreshMasterSAP()" class="btn btn-xs btn-outline-primary btn-sm-custom me-1"><i class="bi bi-arrow-clockwise"></i></button>
+                <button onclick="dlExcel()" class="btn btn-xs btn-success btn-sm-custom me-1"><i class="bi bi-file-earmark-excel"></i></button>
+                <div class="dropdown">
+                    <button class="btn btn-xs btn-outline-secondary btn-sm-custom dropdown-toggle" type="button" data-bs-toggle="dropdown">Kolom</button>
+                    <ul class="dropdown-menu shadow p-2" id="columnSelector" style="font-size: 0.7rem;"></ul>
+                </div>
+            </div>
+        </div>
+        <input type="text" id="qS" class="form-control rounded-pill mb-2 shadow-sm py-1 px-3" placeholder="Cari..." onkeyup="filterStok()" style="font-size: 0.75rem;">
+        <div class="table-card"><div class="table-container"><table class="table align-middle" id="tableMaster"><thead id="hS"></thead><tbody id="bS"></tbody></table></div></div>
+    </div>
+</section>
+
+<section id="histSec">
+    <div class="content-wrapper">
+        <div class="d-flex align-items-center justify-content-between mb-2 bg-white p-2 rounded-3 shadow-sm">
+            <div class="d-flex align-items-center"><i class="bi bi-arrow-left fs-5 me-2" onclick="show('menuSec')" style="cursor:pointer"></i><h6 class="mb-0 fw-bold">Riwayat</h6></div>
+            <div>
+                <button onclick="deleteSelectedHist()" class="btn btn-xs btn-danger btn-sm-custom me-1">Hapus</button>
+                <button onclick="openHist()" class="btn btn-xs btn-outline-primary btn-sm-custom me-1"><i class="bi bi-arrow-clockwise"></i></button>
+                <button onclick="drExcel()" class="btn btn-xs btn-success btn-sm-custom"><i class="bi bi-file-earmark-excel"></i></button>
+            </div>
+        </div>
+        <input type="text" id="qH" class="form-control rounded-pill mb-2 shadow-sm py-1" onkeyup="filterHist()" placeholder="Cari di Riwayat..." style="font-size: 0.75rem;">
+        <div class="table-card"><div class="table-container"><table class="table align-middle" id="tableHistory"><thead id="hH"></thead><tbody id="bH"></tbody></table></div></div>
+    </div>
+</section>
+
+<section id="sumSec">
+    <div class="content-wrapper">
+        <div class="d-flex align-items-center justify-content-between mb-2 bg-white p-2 rounded-3 shadow-sm">
+            <div class="d-flex align-items-center"><i class="bi bi-arrow-left fs-5 me-2" onclick="show('menuSec')" style="cursor:pointer"></i><h6 class="mb-0 fw-bold">Summary</h6></div>
+            <div>
+                <button onclick="openSum()" class="btn btn-xs btn-outline-primary btn-sm-custom me-1"><i class="bi bi-arrow-clockwise"></i></button>
+                <button onclick="filterSelisihNonZero()" class="btn btn-xs btn-outline-danger btn-sm-custom me-1">Selisih</button>
+                <button onclick="dsExcel()" class="btn btn-xs btn-success btn-sm-custom"><i class="bi bi-file-earmark-excel"></i></button>
+            </div>
+        </div>
+        <input type="text" id="qSum" class="form-control rounded-pill mb-2 shadow-sm py-1" onkeyup="filterSum()" placeholder="Cari di Summary..." style="font-size: 0.75rem;">
+        <div class="table-card"><div class="table-container"><table class="table align-middle" id="tableSummary"><thead id="hSum"></thead><tbody id="bSum"></tbody></table></div></div>
+    </div>
+</section>
+
+<script>
+    const WEB_URL = "https://script.google.com/macros/s/AKfycbzp6lvgWXkdV5UPME1VQ8puRqqXYaB4DQOyaIsOPRBrZ02pxo8_oavE8kCUiRdPhp5o/exec";
+    let dataStok = [], dataHist = [], dataSum = [], headers = [], userNow = "";
+
+    // TEXT TO SPEECH
+    function speakText(msg) {
+    if (window.AndroidBridge) {
+    // Memanggil fungsi speak di MainActivity.kt
+    window.AndroidBridge.speak(msg);
+     } else if ('speechSynthesis' in window) {
+    // Fallback jika dibuka di browser biasa (Chrome/PC)
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(msg);
+    u.lang = 'id-ID';
+    window.speechSynthesis.speak(u);
+     }
+    }
+
+    // FORMAT TANGGAL DD:MM:YYYY HH:MM:SS
+    function formatDate(raw) {
+      if (!raw) return "";
+      let d = new Date(raw);
+      if (isNaN(d.getTime())) return raw;
+      const pad = (n) => n.toString().padStart(2, '0');
+      return `${pad(d.getDate())}:${pad(d.getMonth() + 1)}:${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    // PESAN NOTIFIKASI DENGAN EFEK GETAR JIKA ERROR
+    function showMsg(txt, color = "#005f73", isError = false) {
+      const box = document.getElementById('msgBox');
+      box.innerText = txt;
+      box.style.backgroundColor = color;
+      box.style.display = 'block';
+
+      if (isError) {
+        box.classList.add('shake');
+        setTimeout(() => box.classList.remove('shake'), 400);
+      }
+
+      setTimeout(() => box.style.display = 'none', 3000);
+    }
+
+    function show(id) { document.querySelectorAll('section').forEach(s => s.style.display = s.id === id ? 'block' : 'none'); }
+
+    // LOGIN DENGAN NOTIFIKASI
+    function doLogin() {
+      const u = document.getElementById('uIn').value, p = document.getElementById('pIn').value;
+      if(!u || p !== "Indolakt0") {
+        showMsg("Sandi salah atau User belum dipilih!", "#dc3545", true);
+        speakText("Maaf, sandi salah");
+        return;
+      }
+      userNow = u;
+      document.getElementById('helloUser').innerText = userNow;
+      document.getElementById('loginOverlay').style.display = 'none';
+      show('menuSec');
+      showMsg("Login Berhasil! Selamat Datang " + userNow, "#28a745");
+      speakText("Selamat bekerja " + userNow);
+      load();
+    }
+
+    function load() {
+      document.getElementById('loader').style.display = 'flex';
+      fetch(`${WEB_URL}?path=List`).then(r => r.json()).then(d => {
+        dataStok = d.map((x, i) => ({ ...x, _row: i + 2 }));
+
+        // 1. Ambil semua nama kolom dari data
+        let rawHeaders = Object.keys(d[0]).filter(h => h !== "RowIndex" && h.toLowerCase() !== "date");
+
+        // 2. Buang Batch, Qty, dan Lokasi dari urutan asli/acak
+        headers = rawHeaders.filter(h => h !== "Batch" && h !== "Qty" && h !== "Lokasi");
+
+        // 3. Masukkan kembali di akhir dengan urutan Batch di kiri Qty
+        headers.push("Batch", "Qty", "Lokasi");
+
+        updateProgressBar();
+      }).finally(() => document.getElementById('loader').style.display = 'none');
+    }
+
+    function updateProgressBar() {
+      let filled = dataStok.filter(x => x.Fisik > 0).length;
+      let total = dataStok.length;
+      let p = total > 0 ? Math.round((filled / total) * 100) : 0;
+      document.getElementById('pBar').style.width = p + "%";
+      document.getElementById('pText').innerText = `Progres: ${p}% (${filled}/${total})`;
+      if (p === 100 && total > 0) { celebrateSuccess(); }
+    }
+
+    function celebrateSuccess() {
+      speakText("Luar biasa! Opname selesai seratus persen.");
+      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    }
+
+    // GLOBAL RESIZE HANDLER
+    function toggleWidth(tableId, index) {
+      const table = document.querySelector(`#${tableId} table`);
+      const isExpanded = table.rows[0].cells[index].classList.contains('expanded-col');
+      for (let i = 0; i < table.rows.length; i++) {
+        if (table.rows[i].cells[index]) {
+          if (isExpanded) table.rows[i].cells[index].classList.remove('expanded-col');
+          else table.rows[i].cells[index].classList.add('expanded-col');
+        }
+      }
+    }
+
+    function shrinkWidth(tableId, index) {
+      const table = document.querySelector(`#${tableId} table`);
+      for (let i = 0; i < table.rows.length; i++) {
+        if (table.rows[i].cells[index]) table.rows[i].cells[index].classList.remove('expanded-col');
+      }
+    }
+
+    function createHeader(titles, tableId) {
+      return '<tr>' + titles.map((t, idx) => {
+        let disp = (t === "Description") ? "Desc" : (t === "Material") ? "Mat" : t;
+        return `<th onclick="toggleWidth('${tableId}', ${idx})">
+                  <div class="header-content">
+                    <span>${disp}</span>
+                    <button class="btn-shrink" onclick="event.stopPropagation(); shrinkWidth('${tableId}', ${idx})"><i class="bi bi-dash"></i></button>
+                  </div>
+                </th>`;
+      }).join('') + '</tr>';
+    }
+
+    // MASTER SAP
+    function openStok() {
+      speakText("Master SAP"); show('stokSec');
+      const cols = ["Row", ...headers, "Aksi"];
+      document.getElementById('hS').innerHTML = createHeader(cols, 'stokSec');
+      renderStok(dataStok);
+      setupColumnSelector();
+    }
+
+    function renderStok(arr) {
+      document.getElementById('bS').innerHTML = arr.map(x => {
+        const rowClass = (parseFloat(x.Selisih) || 0) !== 0 ? 'class="selisih-row"' : '';
+        let r = `<tr ${rowClass}><td>${x._row}</td>`;
+        headers.forEach(h => {
+          let id = ["Batch", "Qty", "Lokasi"].includes(h) ? `id="c-${h.toLowerCase()}-${x._row}"` : "";
+          r += `<td ${id}>${x[h] || ''}</td>`;
+        });
+        return r + `<td id="btn-box-${x._row}"><button class="btn btn-xs btn-info text-white px-2 py-0" onclick="editRow(${x._row})">Add</button></td></tr>`;
+      }).join('');
+    }
+
+    function editRow(r) {
+      let itm = dataStok.find(x => x._row === r);
+      speakText(itm.Description);
+      ["batch", "qty", "lokasi"].forEach(f => {
+        let cell = document.getElementById(`c-${f}-${r}`);
+        if(cell) cell.innerHTML = `<input type="text" id="i-${f}-${r}" class="form-control form-control-sm" value="${cell.innerText}">`;
+      });
+      document.getElementById('btn-box-'+r).innerHTML = `<button class="btn btn-xs btn-success w-100 py-0" onclick="saveRow(${r})">Save</button>`;
+    }
+
+    // SIMPAN DATA DENGAN NOTIFIKASI
+    function saveRow(r) {
+      let itm = dataStok.find(x => x._row === r);
+      let vB = document.getElementById('i-batch-'+r).value,
+          vQ = document.getElementById('i-qty-'+r).value,
+          vL = document.getElementById('i-lokasi-'+r).value;
+
+      if(!vQ || !vL) {
+        showMsg("Lengkapi Qty dan Lokasi!", "#fd7e14", true);
+        speakText("Harap isi jumlah dan lokasi");
+        return;
+      }
+
+      document.getElementById('loader').style.display = 'flex';
+      fetch(WEB_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'SUBMIT_FORM', Material: itm.Material, Description: itm.Description, Batch: vB, Qty: vQ, User: userNow, Lokasi: vL, Um: itm.Um })
+      })
+      .then(() => {
+        showMsg("Data " + itm.Description + " disimpan!", "#28a745");
+        speakText("Data disimpan");
+        refreshMasterSAP();
+      })
+      .catch(() => showMsg("Gagal simpan data!", "#dc3545", true))
+      .finally(() => document.getElementById('loader').style.display = 'none');
+    }
+
+    function refreshMasterSAP() {
+      document.getElementById('loader').style.display = 'flex';
+      fetch(`${WEB_URL}?path=List`).then(r => r.json()).then(d => {
+        dataStok = d.map((x, i) => ({ ...x, _row: i + 2 }));
+        updateProgressBar(); renderStok(dataStok);
+      }).finally(() => document.getElementById('loader').style.display = 'none');
+    }
+
+    // RIWAYAT
+    function openHist() {
+      speakText("Buka Riwayat"); show('histSec'); document.getElementById('loader').style.display = 'flex';
+      fetch(`${WEB_URL}?path=History`).then(r => r.json()).then(d => {
+        dataHist = d;
+        const cols = ["Sel", "Row", "Time", "Mat", "Desc", "Batch", "Qty", "User"];
+        document.getElementById('hH').innerHTML = createHeader(cols, 'histSec');
+        renderHist(dataHist);
+      }).finally(() => document.getElementById('loader').style.display = 'none');
+    }
+
+    function renderHist(arr) {
+      document.getElementById('bH').innerHTML = arr.slice().reverse().map(x =>
+        `<tr>
+          <td><input type="checkbox" class="hist-check" value="${x.RowIndex}"></td>
+          <td>${x.RowIndex}</td>
+          <td>${formatDate(x.Timestamp)}</td>
+          <td>${x.Material}</td>
+          <td>${x.Description}</td>
+          <td>${x.Batch}</td>
+          <td>${x.Qty}</td>
+          <td>${x.User}</td>
+        </tr>`
+      ).join('');
+    }
+
+    // HAPUS DATA DENGAN NOTIFIKASI & KONFIRMASI
+    async function deleteSelectedHist() {
+      const sel = Array.from(document.querySelectorAll('.hist-check:checked')).map(cb => cb.value);
+      if (!sel.length) {
+        showMsg("Pilih data yang ingin dihapus!", "#fd7e14", true);
+        speakText("Pilih data dulu");
+        return;
+      }
+
+      if (confirm(`Hapus ${sel.length} data terpilih?`)) {
+        speakText("Menghapus data");
+        showMsg(`Sedang menghapus...`, "#005f73");
+        document.getElementById('loader').style.display = 'flex';
+        try {
+          for (let id of sel) {
+            await fetch(WEB_URL, { method: 'POST', body: JSON.stringify({ action: 'DELETE_HISTORY', rowNum: parseInt(id) }) });
+          }
+          showMsg("Data berhasil dihapus!", "#28a745");
+          speakText("Data terhapus");
+          openHist();
+        } catch (err) {
+          showMsg("Gagal menghapus!", "#dc3545", true);
+        } finally {
+          document.getElementById('loader').style.display = 'none';
+        }
+      }
+    }
+
+    // SUMMARY
+    function openSum() {
+      speakText("Buka Summary"); show('sumSec'); document.getElementById('loader').style.display = 'flex';
+      fetch(`${WEB_URL}?path=Summary`).then(r => r.json()).then(d => {
+        dataSum = d;
+        const cols = ["Mat", "Desc", "Um","SAP", "Fisik", "Diff"];
+        document.getElementById('hSum').innerHTML = createHeader(cols, 'sumSec');
+        renderSum(dataSum);
+      }).finally(() => document.getElementById('loader').style.display = 'none');
+    }
+
+    function renderSum(arr) {
+      document.getElementById('bSum').innerHTML = arr.map(x => {
+        const rowClass = (parseFloat(x.Selisih) || 0) !== 0 ? 'class="selisih-row"' : '';
+        return `<tr ${rowClass}><td>${x.Material}</td><td>${x.Description}</td><td>${x.Um}<td>${x.Qty}</td><td>${x.Fisik}</td><td class="fw-bold">${x.Selisih}</td></tr>`;
+      }).join('');
+    }
+
+    // UTILS
+    function setupColumnSelector() {
+      const s = document.getElementById('columnSelector'); if(s.innerHTML !== "") return;
+      headers.forEach((h, i) => {
+        let d = (h === "Description") ? "Desc" : (h === "Material") ? "Mat" : h;
+        s.innerHTML += `<li><div class="form-check ms-2"><input class="form-check-input" type="checkbox" checked onchange="toggleColumn(${i+1}, this.checked)"><label class="form-check-label">${d}</label></div></li>`;
+      });
+    }
+    function toggleColumn(idx, show) {
+      const rows = document.querySelector('#stokSec table').rows;
+      for(let i=0; i<rows.length; i++) if(rows[i].cells[idx]) rows[i].cells[idx].style.display = show ? '' : 'none';
+    }
+    function filterStok() {
+      let q = document.getElementById('qS').value.toLowerCase();
+      renderStok(dataStok.filter(x => (x.Description?.toString().toLowerCase().includes(q)) || (x.Batch?.toString().toLowerCase().includes(q))));
+    }
+    function filterStokSelisih() { renderStok(dataStok.filter(x => (parseFloat(x.Selisih) || 0) !== 0)); }
+    function filterHist() {
+    let q = document.getElementById('qH').value.toLowerCase();
+    renderHist(dataHist.filter(x => (x.Description?.toString().toLowerCase().includes(q)) || (x.User?.toString().toLowerCase().includes(q)) || (x.Batch?.toString().toLowerCase().includes(q))));
+    }
+    function filterSum() {
+      let q = document.getElementById('qSum').value.toLowerCase();
+      renderSum(dataSum.filter(x => x.Description?.toString().toLowerCase().includes(q)));
+    }
+    function filterSelisihNonZero() { renderSum(dataSum.filter(x => (parseFloat(x.Selisih) || 0) !== 0)); }
+    function doLogout() { speakText("Sampai jumpa"); setTimeout(() => location.reload(), 500); }
+    function manualSync() { speakText("Sinkronisasi data"); load(); }
+	
+    // --- FUNGSI DOWNLOAD (SISTEM BARU: SHEETJS) ---
+	function exportToExcel(tableId, fileName) {
+    const table = document.getElementById(tableId);
+    if (!table || table.rows.length <= 1) {
+      showMsg("Data kosong!", "#dc3545");
+	  showMsg("Unduh gagal");
+      return;
+    }
+    speakText("Mengunduh excel");
+    const ws = XLSX.utils.table_to_sheet(table);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    XLSX.writeFile(wb, fileName);
+    showMsg("Berhasil diunduh");
+  }
+  function dlExcel() { exportToExcel("tableMaster", "Rekonsile_SAP.xlsx"); }
+  function drExcel() { exportToExcel("tableHistory", "Hasil_Input.xlsx"); }
+  function dsExcel() { exportToExcel("tableSummary", "Summary_rekonsile.xlsx"); }
+</script>
+</body>
+</html>
